@@ -7,10 +7,14 @@ export default function ChatBotFloat() {
   const { items, setQty, remove, total } = useCart();
   const [open, setOpen] = useState(false);
 
+// Site URL for building product links inside WhatsApp message
+  const SITE =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://buch-collection-frontend.vercel.app";
+
     // Single brand color for the whole widget
   const WA_COLOR = "#128C7E"; 
   const count = useMemo(() => items.reduce((s, x) => s + x.qty, 0), [items]);
-  const href  = useMemo(() => waHrefForCart(items), [items]);
+  const href = useMemo(() => waHrefForCart(items, SITE), [items, SITE]);
 
   // auto-pop open briefly when an item is added
   useEffect(() => {
