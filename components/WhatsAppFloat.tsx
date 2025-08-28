@@ -2,7 +2,7 @@
 import { useCart } from "../context/CartContext";
 import { waHrefForCart } from "../utils/whatsapp";
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://buch-collection-frontend.vercel.app";
 
 export default function WhatsAppFloat() {
   const { items } = useCart();

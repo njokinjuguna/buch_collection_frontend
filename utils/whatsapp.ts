@@ -3,7 +3,7 @@ import type { Product } from "../data/products";
 
 
 const PHONE = process.env.NEXT_PUBLIC_WA_PHONE || "393717670312"; // <— now from env
-const SITE  = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const SITE  = process.env.NEXT_PUBLIC_SITE_URL || "https://buch-collection-frontend.vercel.app";
 
 export function currency(amount: number) {
   return new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES" }).format(amount);
