@@ -16,6 +16,7 @@ export default function ChatBotFloat() {
   const count = useMemo(() => items.reduce((s, x) => s + x.qty, 0), [items]);
   const href = useMemo(() => waHrefForCart(items, SITE), [items, SITE]);
 
+
   // auto-pop open briefly when an item is added
   useEffect(() => {
     const onAdded = () => {
