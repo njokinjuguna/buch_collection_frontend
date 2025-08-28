@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { ReactNode } from "react";
+import { CartProvider } from "../context/CartContext"; // <-- import your provider
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -11,11 +12,14 @@ export const metadata: Metadata = {
   description: "Your site description here",
 };
 
-// ✅ required default export
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <CartProvider>
+          {children}
+        </CartProvider>
+      </body>
     </html>
   );
 }
