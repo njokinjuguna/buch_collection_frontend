@@ -4,38 +4,56 @@ import type { Metadata } from "next";
 type Params = { slug: string };
 
 export function generateStaticParams() {
-  return products.map(p => ({ slug: p.slug }));
+  return products.map((p) => ({ slug: p.slug }));
 }
 
 export function generateMetadata({ params }: { params: Params }): Metadata {
-  const p = products.find(x => x.slug === params.slug)!;
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-  const url = `${site}/p/${p.slug}`;
+  const p = products.find((x) => x.slug === params.slug)!;
+
+  const site =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "https://buch-collection-frontend.vercel.app"; // fallback to your prod URL
+
+  const pageUrl = `${site}/p/${p.slug}`;
+
+  // ensure absolute image URL (WA requires absolute)
+  const img =
+    p.image.startsWith("http") ? p.image : `${site}${p.image.startsWith("/") ? "" : "/"}${p.image}`;
+
+  const title = `${p.name} – KSh ${p.price.toLocaleString()} | BUCH`;
+  const desc = "Payment: Cash on Delivery.";
+
   return {
-    title: `${p.name} – KSh ${p.price.toLocaleString()} | BUCH`,
+    title,
+    description: desc,
     openGraph: {
-      title: `${p.name} – KSh ${p.price.toLocaleString()}`,
-      description: "Payment: Cash on Delivery.",
-      images: [{ url: p.image }],
-      url,
-      type: "product",
+      // ❌ "product" not in the union; use "website" or omit
+      type: "website",
+      url: pageUrl,
+      title,
+      description: desc,
+      images: [{ url: img }],
     },
     twitter: {
       card: "summary_large_image",
-      title: `${p.name} – KSh ${p.price.toLocaleString()}`,
-      description: "Payment: Cash on Delivery.",
-      images: [p.image],
+      title,
+      description: desc,
+      images: [img],
     },
   };
 }
 
 export default function ProductPage({ params }: { params: Params }) {
-  const p = products.find(x => x.slug === params.slug)!;
+  const p = products.find((x) => x.slug === params.slug)!;
   return (
-    <main style={{maxWidth:900, margin:"40px auto", padding:"0 20px"}}>
-      <h1>{p.name} – KSh {p.price.toLocaleString()}</h1>
-      <img src={p.image} alt={p.name} style={{maxWidth:"100%", borderRadius:12}} />
-      <p>Payment: <strong>Cash on Delivery</strong></p>
+    <main style={{ maxWidth: 900, margin: "40px auto", padding: "0 20px" }}>
+      <h1>
+        {p.name} – KSh {p.price.toLocaleString()}
+      </h1>
+      <img src={p.image} alt={p.name} style={{ maxWidth: "100%", borderRadius: 12 }} />
+      <p>
+        Payment: <strong>Cash on Delivery</strong>
+      </p>
     </main>
   );
 }

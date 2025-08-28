@@ -1,17 +1,10 @@
 import "./globals.css";
-import { CartProvider } from "../context/CartContext";
+import type { Metadata } from "next";
 
-export const metadata = {
-  title: "BUCH Collection",
-  description: "Shoes & Appliances. Cash on Delivery.",
+export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || "https://buch-collection-frontend.vercel.app"
+  ),
+  title: "Buch Collection",
+  description: "Your site description here",
 };
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <body>
-        <CartProvider>{children}</CartProvider>
-      </body>
-    </html>
-  );
-}
