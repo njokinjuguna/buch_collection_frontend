@@ -302,7 +302,9 @@ function EditableRow({
   const [busy, setBusy] = useState(false);
   const [local, setLocal] = useState<Product>(product);
 
-  useEffect(() => setLocal(product), [product.id]); // reset if list reloads
+ useEffect(() => {
+  if (!edit) setLocal(product);   // don't overwrite local while editing
+}, [product, edit]);
 
   const changed =
     local.name !== product.name ||

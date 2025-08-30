@@ -10,15 +10,14 @@ type Product = {
   id: string;
   slug: string;
   name: string;
-  description?: string | null;
   price?: number | null;
-  currency?: string | null;
   image?: string | null;
+  description?: string | null;
 };
 
 // Build absolute origin for server fetches (dev + Vercel)
-function siteOrigin() {
-  const h = headers();
+async function siteOrigin(): Promise<string> {
+  const h = await headers(); // ⬅️ Next 15: await headers()
   const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
   if (fromEnv) return fromEnv;
 
@@ -28,7 +27,7 @@ function siteOrigin() {
 }
 
 async function fetchProduct(slug: string): Promise<Product | null> {
-  const base = siteOrigin();
+  const base = await siteOrigin(); // ⬅️ await the async helper
   const res = await fetch(`${base}/api/products/slug/${encodeURIComponent(slug)}`, {
     cache: "no-store",
   });
@@ -37,9 +36,7 @@ async function fetchProduct(slug: string): Promise<Product | null> {
 }
 
 export default async function ProductPage({ params }: { params: Promise<Params> }) {
-  // Next 15: await the params Promise
-  const { slug } = await params;
-
+  const { slug } = await params; // ⬅️ Next 15: await params
   const p = await fetchProduct(slug);
   if (!p) return notFound();
 
@@ -54,10 +51,10 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
       {p.image ? (
         <div
           style={{
-            position: "relative",      // required when using <Image fill />
+            position: "relative",
             width: "100%",
             maxWidth: 900,
-            aspectRatio: "4 / 5",      // consistent product ratio; tweak as needed
+            aspectRatio: "4 / 5",
             borderRadius: 12,
             overflow: "hidden",
             margin: "0 auto",
