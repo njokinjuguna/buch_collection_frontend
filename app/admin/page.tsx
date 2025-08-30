@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect,  useState } from "react";
+import Image from "next/image";
 
 type Visibility = "draft" | "published" | "archived";
 
@@ -377,11 +378,28 @@ function EditableRow({
         borderRadius: 10,
       }}
     >
-      <div style={{ width: 64, height: 64, background: "#f7f7f7", borderRadius: 8, overflow: "hidden" }}>
-        {local.image ? (
-          <img src={local.image} alt={local.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-        ) : null}
-      </div>
+     <div
+  style={{
+    position: "relative",            // required for `fill`
+    width: 64,
+    height: 64,
+    background: "#f7f7f7",
+    borderRadius: 8,
+    overflow: "hidden",
+  }}
+>
+  {local.image ? (
+    <Image
+      src={local.image}
+      alt={local.name}
+      fill                         // fills the 64x64 box
+      sizes="64px"
+      style={{ objectFit: "cover" }}
+      // optional: skip Next optimization if Cloudinary already does it
+      // unoptimized
+    />
+  ) : null}
+</div>
 
       <div style={{ display: "grid", gap: 6 }}>
         {!edit ? (

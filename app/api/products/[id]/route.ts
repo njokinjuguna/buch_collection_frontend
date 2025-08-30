@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   _req: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: { id: string } }
 ) {
   const { id } = await ctx.params;
 
@@ -27,7 +27,7 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: { id: string } }
 ) {
   const { id } = await ctx.params;
   const body = await req.json(); // type this as Partial<Product> if you like
@@ -47,7 +47,7 @@ export async function PATCH(
 
 export async function DELETE(
   _req: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: { id: string } }
 ) {
   const { id } = await ctx.params;
 
