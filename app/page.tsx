@@ -1,42 +1,20 @@
 // app/page.tsx
-import { headers } from "next/headers";
+import { SITE } from "@/lib/site";
 import ProductCard from "../components/ProductCard";
 import ChatBotFloat from "../components/ChatBotFloat";
+import type { Product } from "@/types/product";
 
-export const revalidate = 0; // disable cache while testing
-
-type Product = {
-  id: string;
-  slug: string;
-  name: string;
-  price: number;
-  currency: string;
-  image?: string;
-  visibility: "draft" | "published" | "archived";
-};
-
-// Build absolute site origin from headers (fallback to env)
-function siteOrigin() {
-  const h = headers();
-  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
-  if (fromEnv) return fromEnv;
-
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
-  return `${proto}://${host}`;
-}
+export const revalidate = 86400; // cache; API revalidates via tag on writes
 
 async function fetchProducts(): Promise<Product[]> {
-  const base = siteOrigin();
-  const res = await fetch(`${base}/api/products?visibility=published`, {
-    cache: "no-store",
+  const res = await fetch(`${SITE}/api/products?visibility=published`, {
+    next: { tags: ["products"] },
   });
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`/api/products failed: ${res.status} ${txt}`);
-  }
+  if (!res.ok) return [];
   return res.json();
 }
+
+type CardProduct = Pick<Product, "slug" | "name" | "price" | "image">;
 
 export default async function Page() {
   const products = await fetchProducts();
@@ -57,9 +35,15 @@ export default async function Page() {
             gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))",
           }}
         >
-          {products.map((p) => (
-            <ProductCard key={p.slug} product={p as any} />
-          ))}
+          {products.map((p) => {
+            const cp: CardProduct = {
+              slug: p.slug,
+              name: p.name,
+              price: p.price,
+              image: p.image ?? undefined,
+            };
+            return <ProductCard key={p.slug} product={cp} />;
+          })}
         </div>
       )}
 
