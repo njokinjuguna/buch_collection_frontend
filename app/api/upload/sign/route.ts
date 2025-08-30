@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 
 export async function POST() {
-  if (!isAdminAuthed()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await isAdminAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME!;
   const apiKey     = process.env.CLOUDINARY_API_KEY!;

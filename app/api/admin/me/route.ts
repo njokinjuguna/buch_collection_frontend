@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { isAdminAuthed } from "@/lib/adminAuth";
 
-export function GET() {
-  return NextResponse.json({ ok: isAdminAuthed() });
+export async function GET() {
+  const authed = await isAdminAuthed();   // ⬅️ await
+  return NextResponse.json({ authed });
 }
+

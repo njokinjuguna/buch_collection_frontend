@@ -29,7 +29,7 @@ type UpsertBody = Partial<Omit<Product, "id" | "created_at" | "updated_at">>;
 
 // POST /api/products  (admin only)
 export async function POST(req: NextRequest) {
-  if (!isAdminAuthed()) {
+  if (!(await isAdminAuthed())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -1,31 +1,59 @@
-import { NextRequest, NextResponse } from "next/server";
-import { revalidateTag } from "next/cache";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { isAdminAuthed } from "@/lib/adminAuth";
+// app/api/products/[id]/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string }}) {
-  if (!isAdminAuthed()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export const dynamic = 'force-dynamic';
 
-  const body = await req.json();
-  body.updated_at = new Date().toISOString();
+export async function GET(
+  _req: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  const { id } = await ctx.params;
 
   const { data, error } = await supabaseAdmin
-    .from("products")
+    .from('products')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  return NextResponse.json(data);
+}
+
+export async function PATCH(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  const { id } = await ctx.params;
+  const body = await req.json(); // type this as Partial<Product> if you like
+
+  const { data, error } = await supabaseAdmin
+    .from('products')
     .update(body)
-    .eq("id", params.id)
+    .eq('id', id)
     .select()
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  try { revalidateTag("products"); } catch {}
+
+  revalidateTag('products');
   return NextResponse.json(data);
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: { id: string }}) {
-  if (!isAdminAuthed()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function DELETE(
+  _req: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  const { id } = await ctx.params;
 
-  const { error } = await supabaseAdmin.from("products").delete().eq("id", params.id);
+  const { error } = await supabaseAdmin.from('products').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  try { revalidateTag("products"); } catch {}
+
+  revalidateTag('products');
   return NextResponse.json({ ok: true });
 }
