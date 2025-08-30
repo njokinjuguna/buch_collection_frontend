@@ -12,4 +12,5 @@ export type Product = {
   visibility: "draft" | "published" | "archived";
   created_at?: string;
   updated_at?: string;
+  category?: string | null;
 };

@@ -4,7 +4,7 @@ import ProductCard from "../components/ProductCard";
 import ChatBotFloat from "../components/ChatBotFloat";
 import type { Product } from "@/types/product";
 
-export const revalidate = 86400; // cache; API revalidates via tag on writes
+export const revalidate = 86400;
 
 async function fetchProducts(): Promise<Product[]> {
   const res = await fetch(`${SITE}/api/products?visibility=published`, {
@@ -13,8 +13,6 @@ async function fetchProducts(): Promise<Product[]> {
   if (!res.ok) return [];
   return res.json();
 }
-
-type CardProduct = Pick<Product, "slug" | "name" | "price" | "image">;
 
 export default async function Page() {
   const products = await fetchProducts();
@@ -33,17 +31,12 @@ export default async function Page() {
             display: "grid",
             gap: 20,
             gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))",
+            alignItems: "start",
           }}
         >
-          {products.map((p) => {
-            const cp: CardProduct = {
-              slug: p.slug,
-              name: p.name,
-              price: p.price,
-              image: p.image ?? undefined,
-            };
-            return <ProductCard key={p.slug} product={cp} />;
-          })}
+          {products.map((p) => (
+            <ProductCard key={p.slug} product={p} />
+          ))}
         </div>
       )}
 
