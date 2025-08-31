@@ -1,39 +1,49 @@
 // app/enquiry/[slugs]/page.tsx
 import type { Metadata } from "next";
-import { SITE } from "@/lib/site";
+import { headers } from "next/headers";
+
+export const dynamic = "force-dynamic";
 
 type Params = { slugs: string };
+
+function siteOrigin() {
+  const env = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
+  if (env) return env;
+  const h = headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
 
 export async function generateMetadata(
   { params }: { params: Promise<Params> }
 ): Promise<Metadata> {
   const { slugs } = await params;
-  const og = `${SITE}/api/og/enquiry?slugs=${encodeURIComponent(slugs)}`;
+  const base = siteOrigin();
+  const img = `${base}/api/og/enquiry?u=${encodeURIComponent(slugs)}`;
 
   return {
     title: "Enquiry – Buch Collection",
+    description: "Your site description here",
+    robots: { index: false },
     openGraph: {
-      title: "Enquiry – Buch Collection",
-      url: `${SITE}/enquiry/${encodeURIComponent(slugs)}`,
-      images: [{ url: og, width: 1200, height: 630 }],
+      type: "website",
+      url: `${base}/enquiry/${encodeURIComponent(slugs)}`,
+      images: [{ url: img, width: 1200, height: 630, alt: "Enquiry – Buch Collection" }],
     },
-    twitter: { card: "summary_large_image", images: [og] },
+    twitter: {
+      card: "summary_large_image",
+      images: [img],
+    },
   };
 }
 
-export default async function EnquirySharePage({ params }: { params: Promise<Params> }) {
-  const { slugs } = await params;
-  const list = slugs.split(",").filter(Boolean);
-
+export default function Page() {
+  // This page is just a placeholder; bots only need the meta tags.
   return (
-    <main style={{ maxWidth: 800, margin: "40px auto", padding: "0 20px" }}>
-      <h1>Enquiry</h1>
-      <p>This page is for sharing your enquiry. The preview image on WhatsApp shows the selected items.</p>
-      <ul>
-        {list.map(s => (
-          <li key={s}><a href={`/p/${s}`}>/p/{s}</a></li>
-        ))}
-      </ul>
+    <main style={{ padding: 20 }}>
+      <h1>Thanks!</h1>
+      <p>You can close this tab.</p>
     </main>
   );
 }
