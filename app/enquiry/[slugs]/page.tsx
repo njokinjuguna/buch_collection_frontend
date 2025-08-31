@@ -1,49 +1,73 @@
 // app/enquiry/[slugs]/page.tsx
-import type { Metadata } from "next";
 import { headers } from "next/headers";
-
-export const dynamic = "force-dynamic";
+import Image from "next/image";
+// ...other imports
 
 type Params = { slugs: string };
 
-function siteOrigin() {
+// ⬇⬇⬇ make this ASYNC and await headers()
+async function siteOrigin() {
   const env = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
   if (env) return env;
-  const h = headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
+
+  const h = await headers(); // <- await
+  const host =
+    h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const proto =
+    h.get("x-forwarded-proto") ??
+    (host.includes("localhost") ? "http" : "https");
   return `${proto}://${host}`;
 }
 
-export async function generateMetadata(
-  { params }: { params: Promise<Params> }
-): Promise<Metadata> {
+export default async function EnquiryPage({
+  params,
+}: {
+  params: Promise<Params>;
+}) {
   const { slugs } = await params;
-  const base = siteOrigin();
-  const img = `${base}/api/og/enquiry?u=${encodeURIComponent(slugs)}`;
 
-  return {
-    title: "Enquiry – Buch Collection",
-    description: "Your site description here",
-    robots: { index: false },
-    openGraph: {
-      type: "website",
-      url: `${base}/enquiry/${encodeURIComponent(slugs)}`,
-      images: [{ url: img, width: 1200, height: 630, alt: "Enquiry – Buch Collection" }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      images: [img],
-    },
-  };
-}
+  // ⬇⬇⬇ await the async origin helper
+  const base = await siteOrigin();
 
-export default function Page() {
-  // This page is just a placeholder; bots only need the meta tags.
+  const slugsArr = decodeURIComponent(slugs)
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const products = await Promise.all(
+    slugsArr.map(async (slug) => {
+      const r = await fetch(`${base}/api/products/slug/${slug}`, {
+        cache: "no-store",
+      });
+      return r.ok ? r.json() : null;
+    })
+  ).then(list => list.filter(Boolean));
+
   return (
-    <main style={{ padding: 20 }}>
-      <h1>Thanks!</h1>
-      <p>You can close this tab.</p>
+    <main style={{ maxWidth: 900, margin: "32px auto", padding: "0 16px" }}>
+      <h1>Enquiry</h1>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+          gap: 16,
+        }}
+      >
+        {products.map((p: any) =>
+          p?.image ? (
+            <div key={p.slug} style={{ position: "relative", width: "100%", aspectRatio: "4/5" }}>
+              <Image
+                src={p.image}
+                alt={p.name}
+                fill
+                sizes="(max-width: 900px) 100vw, 300px"
+                style={{ objectFit: "cover", borderRadius: 12 }}
+                unoptimized
+              />
+            </div>
+          ) : null
+        )}
+      </div>
     </main>
   );
 }
