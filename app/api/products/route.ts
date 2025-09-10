@@ -45,6 +45,10 @@ export async function POST(req: NextRequest) {
     gallery: body.gallery ?? [],
     in_stock: body.in_stock ?? true,
     visibility: body.visibility ?? "draft",
+    is_banner: !!body.is_banner,
+    is_new: !!body.is_new,
+    stock_status: (body.stock_status ?? 'in_stock') as 'in_stock'|'out_of_stock'|'restock',
+    offer_percent: body.offer_percent ?? null,
   };
 
   const { data, error } = await supabaseAdmin

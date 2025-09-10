@@ -1,9 +1,15 @@
 "use client";
 
-import { useEffect,  useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
+import type { Category } from "@/types/category";
 
 type Visibility = "draft" | "published" | "archived";
+type StockStatus = "in_stock" | "out_of_stock" | "restock";
+// UI state can be empty string for "None"
+type StockStatusUI = StockStatus | "";
+
+type OfferPercent = 10 | 30 | 50 | null;
 
 type Product = {
   id: string;
@@ -14,7 +20,16 @@ type Product = {
   image?: string;
   visibility: Visibility;
   in_stock: boolean;
+  category?: string; 
+  // API may also return these, but we keep them optional to avoid breaking:
+  is_banner?: boolean;
+  is_new?: boolean;
+  stock_status?: StockStatus;
+  offer_percent?: OfferPercent;
 };
+
+
+
 
 function slugify(s: string) {
   return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "");
@@ -26,14 +41,39 @@ export default function AdminPage() {
   const [list, setList] = useState<Product[]>([]);
   const [saving, setSaving] = useState(false);
 
+  // NEW (Create-form flags)
+  const [isBanner, setIsBanner] = useState(false);
+  const [isNew, setIsNew] = useState(false);
+  const [stockStatus, setStockStatus] = useState<StockStatusUI>(""); // was "in_stock"
+  
+  const [offerPercent, setOfferPercent] = useState<OfferPercent>(null);
+  
+  const [postFBOnCreate, setPostFBOnCreate] = useState(false);
+  const [postIGOnCreate, setPostIGOnCreate] = useState(false);
+
+//categories
+
+
+// Load categories for the dropdowns
+const [categories, setCategories] = useState<Category[]>([]);
+useEffect(() => {
+  fetch("/api/categories")
+    .then((r) => r.json())
+    .then((j) => setCategories(Array.isArray(j) ? j : []))
+    .catch(() => setCategories([]));
+}, []);
+
+
+  // Existing create form fields
   const [form, setForm] = useState({
     name: "",
     price: 0,
     currency: "KES",
     image: "",
-    in_stock: true,
+    in_stock: true, // kept for create compatibility (server still derives from stock_status)
     visibility: "draft" as const,
     slug: "",
+    category: "",  
   });
 
   // detect cookie/session on mount
@@ -95,34 +135,58 @@ export default function AdminPage() {
   }
 
   async function createProduct() {
-    setSaving(true);
-    try {
-      const slug = form.slug || `${slugify(form.name)}-${Math.random().toString(36).slice(2, 6)}`;
-      const r = await fetch("/api/products", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ...form, slug }),
-      });
-      if (!r.ok) {
-        const e = await r.json().catch(() => ({}));
-        alert("Create failed: " + (e.error || r.status));
-        return;
-      }
-      setForm({
-        name: "",
-        price: 0,
-        currency: "KES",
-        image: "",
-        in_stock: true,
-        visibility: "draft",
-        slug: "",
-      });
-      await loadAll();
-      alert("Created!");
-    } finally {
-      setSaving(false);
+  setSaving(true);
+  try {
+    const slug =
+      form.slug || `${slugify(form.name)}-${Math.random().toString(36).slice(2, 6)}`;
+
+    // 1) Create in app
+    const r = await fetch("/api/products", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        ...form,
+        slug,
+        is_banner: isBanner,
+        is_new: isNew,
+        stock_status: stockStatus || null, // "" -> null
+        offer_percent: offerPercent,
+      }),
+    });
+
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({}));
+      alert("Create failed: " + (e.error || r.status));
+      return;
     }
+
+    const created = await r.json(); // <-- use this for socials
+
+
+
+    // 3) Reset (after socials so values are still available)
+    setForm({
+      name: "",
+      price: 0,
+      currency: "KES",
+      image: "",
+      in_stock: true,
+      visibility: "draft",
+      slug: "",
+      category: "",
+    });
+    setIsBanner(false);
+    setIsNew(false);
+    setStockStatus(""); // reset to None
+    setOfferPercent(null);
+
+    await loadAll();
+    alert("Created!");
+  } finally {
+    setSaving(false);
   }
+}
+
 
   return (
     <main style={{ maxWidth: 980, margin: "40px auto", padding: 20 }}>
@@ -138,6 +202,14 @@ export default function AdminPage() {
             </button>
           ) : null}
         </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+    
+    <nav style={{ display: "flex", gap: 10, fontSize: 14 }}>
+      <strong>Products</strong>
+      <span style={{ opacity: 0.5 }}>•</span>
+      <a href="/admin/setup">Setup</a>
+    </nav>
+  </div>
       </header>
 
       {!loggedIn && (
@@ -191,7 +263,30 @@ export default function AdminPage() {
               style={{ padding: 10, borderRadius: 8, border: "1px solid #ccc", flex: 1 }}
             />
           </div>
+          
 
+<div style={{ display: "flex", gap: 8 }}>
+  {/* existing name/price/currency/slug inputs... */}
+</div>
+
+{/* Category */}
+<div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+  <span>Category</span>
+  <select
+    value={form.category}
+    onChange={(e) => setForm((s) => ({ ...s, category: e.target.value }))}
+    style={{ padding: 10, borderRadius: 8, border: "1px solid #ccc", minWidth: 220 }}
+  >
+    <option value="">— pick category —</option>
+    {categories.map((c) => (
+      <option key={c.id} value={c.name}>
+        {c.name}
+      </option>
+    ))}
+  </select>
+</div>
+
+   
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input
               placeholder="Image URL (or use Upload)"
@@ -230,6 +325,51 @@ export default function AdminPage() {
             </label>
           </div>
 
+          {/* NEW flags for Create */}
+          <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(4, minmax(0,1fr))" }}>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <input type="checkbox" checked={isBanner} onChange={(e) => setIsBanner(e.target.checked)} />
+              Make banner image
+            </label>
+
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <input type="checkbox" checked={isNew} onChange={(e) => setIsNew(e.target.checked)} />
+              New
+            </label>
+
+<div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+  <span>Stock</span>
+  <select
+    value={stockStatus}
+    onChange={(e) => setStockStatus(e.target.value as StockStatusUI)}
+    style={{ padding: 10, borderRadius: 8, border: "1px solid #ccc", flex: 1 }}
+  >
+    
+    <option value="">None</option>        {/* ← new */}
+    <option value="in_stock">in stock</option>
+    <option value="out_of_stock">out of stock</option>
+    <option value="restock">restock</option>
+  </select>
+</div>
+
+
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <span>On offer</span>
+              <select
+                value={offerPercent ?? ""}
+                onChange={(e) =>
+                  setOfferPercent(e.target.value === "" ? null : (Number(e.target.value) as OfferPercent))
+                }
+                style={{ padding: 10, borderRadius: 8, border: "1px solid #ccc", flex: 1 }}
+              >
+                <option value="">None</option>
+                <option value="10">10%</option>
+                <option value="30">30%</option>
+                <option value="50">50%</option>
+              </select>
+            </div>
+          </div>
+
           <button
             disabled={saving || !loggedIn}
             onClick={createProduct}
@@ -243,6 +383,7 @@ export default function AdminPage() {
           >
             {saving ? "Saving..." : "Create product"}
           </button>
+
         </div>
       </section>
 
@@ -251,6 +392,7 @@ export default function AdminPage() {
         loggedIn={loggedIn}
         onChanged={loadAll}
         signAndUpload={signAndUpload}
+        categories={categories}
       />
     </main>
   );
@@ -258,16 +400,20 @@ export default function AdminPage() {
 
 /** ---------- Editable list & rows ---------- */
 
+
+
 function EditableList({
   items,
   loggedIn,
   onChanged,
   signAndUpload,
+  categories,  
 }: {
   items: Product[];
   loggedIn: boolean;
   onChanged: () => Promise<void> | void;
   signAndUpload: (file: File) => Promise<string>;
+  categories: Category[];
 }) {
   return (
     <section>
@@ -280,6 +426,7 @@ function EditableList({
             loggedIn={loggedIn}
             onChanged={onChanged}
             signAndUpload={signAndUpload}
+            categories={categories}
           />
         ))}
       </div>
@@ -292,19 +439,65 @@ function EditableRow({
   loggedIn,
   onChanged,
   signAndUpload,
+  categories,
+
 }: {
   product: Product;
   loggedIn: boolean;
   onChanged: () => Promise<void> | void;
   signAndUpload: (file: File) => Promise<string>;
+  categories: Category[]; 
 }) {
   const [edit, setEdit] = useState(false);
   const [busy, setBusy] = useState(false);
   const [local, setLocal] = useState<Product>(product);
 
- useEffect(() => {
-  if (!edit) setLocal(product);   // don't overwrite local while editing
-}, [product, edit]);
+  // Extra flags for edit (seed from product if present)
+  const [isBanner, setIsBanner] = useState<boolean>((product as any).is_banner ?? false);
+  const [isNew, setIsNew] = useState<boolean>((product as any).is_new ?? false);
+const [stockStatus, setStockStatus] = useState<StockStatusUI>(
+  (product as any).stock_status ?? ""
+);
+  const [offerPercent, setOfferPercent] = useState<OfferPercent>(
+    (((product as any).offer_percent ?? null) as OfferPercent)
+  );
+
+const [pubOpen, setPubOpen] = useState(false);
+const [pubWeb, setPubWeb] = useState(true);     // default publish to website
+const [pubFB, setPubFB] = useState(false);
+const [pubIG, setPubIG] = useState(false);
+
+// close the small menu when clicking elsewhere
+useEffect(() => {
+  function onDocClick(e: MouseEvent) {
+    const el = document.getElementById(`pub-${product.id}`);
+    if (el && !el.contains(e.target as Node)) setPubOpen(false);
+  }
+  if (pubOpen) document.addEventListener("click", onDocClick);
+  return () => document.removeEventListener("click", onDocClick);
+}, [pubOpen, product.id]);
+
+  useEffect(() => {
+    if (!edit) {
+      setLocal(product); // don't overwrite while editing
+      setIsBanner((product as any).is_banner ?? false);
+      setIsNew((product as any).is_new ?? false);
+      setStockStatus((product as any).stock_status ?? "");
+
+      setOfferPercent((((product as any).offer_percent ?? null) as OfferPercent));
+    }
+  }, [product, edit]);
+
+
+  // Derive the stock label from stock_status (fallback to boolean for older rows)
+const viewStock = (product as any).stock_status as StockStatus | undefined;
+let viewStatusLabel = "";
+if (viewStock === "in_stock") viewStatusLabel = "• in stock";
+else if (viewStock === "out_of_stock") viewStatusLabel = "• out of stock";
+else if (viewStock === "restock") viewStatusLabel = "• restock soon";
+// if undefined or "", show nothing
+
+
 
   const changed =
     local.name !== product.name ||
@@ -312,7 +505,12 @@ function EditableRow({
     local.currency !== product.currency ||
     local.image !== product.image ||
     local.visibility !== product.visibility ||
-    local.in_stock !== product.in_stock;
+    (local.category || "") !== (product.category || "") || 
+    // removed: local.in_stock !== product.in_stock
+    isBanner !== ((product as any).is_banner ?? false) ||
+    isNew !== ((product as any).is_new ?? false) ||
+    (stockStatus || "") !== (((product as any).stock_status ?? "") as string) ||
+    (offerPercent ?? null) !== (((product as any).offer_percent ?? null) as OfferPercent);
 
   async function save() {
     setBusy(true);
@@ -326,7 +524,13 @@ function EditableRow({
           currency: local.currency,
           image: local.image,
           visibility: local.visibility,
-          in_stock: local.in_stock,
+          category: local.category ?? "", 
+          // removed: in_stock: local.in_stock,
+          // NEW
+          is_banner: isBanner,
+          is_new: isNew,
+          stock_status: stockStatus || null,
+          offer_percent: offerPercent,
         }),
       });
       if (!r.ok) {
@@ -334,6 +538,30 @@ function EditableRow({
         alert("Save failed: " + (e.error || r.status));
         return;
       }
+
+
+          // ✅ POST to social (best-effort; don't block)
+    try {
+      await fetch("/api/social/publish", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          product: {
+            name: local.name,
+            price: local.price,
+            currency: local.currency,
+            image: local.image,
+            slug: product.slug,            // keep existing slug
+            stock_status: (stockStatus as any) || null,
+            is_new: isNew,
+            offer_percent: offerPercent,
+            category: local.category || "",
+          },
+          platforms: ["facebook", "instagram"],
+        }),
+      });
+    } catch {}
+
       setEdit(false);
       await onChanged();
     } finally {
@@ -341,20 +569,59 @@ function EditableRow({
     }
   }
 
-  async function publish() {
-    setBusy(true);
-    try {
+
+  
+
+async function publishSelected() {
+  if (!pubWeb && !pubFB && !pubIG) {
+    setPubOpen(false);
+    return;
+  }
+  setBusy(true);
+  try {
+    // 1) Website publish (sets visibility)
+    if (pubWeb) {
       const r = await fetch(`/api/products/${product.id}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ visibility: "published" as Visibility }),
       });
-      if (!r.ok) alert("Publish failed");
-      await onChanged();
-    } finally {
-      setBusy(false);
+      if (!r.ok) alert("Publish to website failed");
     }
+
+    // 2) Socials
+    const platforms: Array<"facebook" | "instagram"> = [];
+    if (pubFB) platforms.push("facebook");
+    if (pubIG) platforms.push("instagram");
+
+    if (platforms.length && product.image) {
+      await fetch("/api/social/publish", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          product: {
+            name: product.name,
+            price: product.price,
+            currency: product.currency,
+            image: product.image,
+            slug: product.slug,
+            stock_status: (product as any).stock_status ?? null,
+            is_new: (product as any).is_new ?? false,
+            offer_percent: (product as any).offer_percent ?? null,
+            category: product.category ?? "",
+          },
+          platforms,
+        }),
+      });
+    }
+
+    setPubOpen(false);
+    await onChanged();
+  } finally {
+    setBusy(false);
   }
+}
+
 
   async function del() {
     if (!confirm("Delete this product?")) return;
@@ -380,35 +647,36 @@ function EditableRow({
         borderRadius: 10,
       }}
     >
-     <div
-  style={{
-    position: "relative",            // required for `fill`
-    width: 64,
-    height: 64,
-    background: "#f7f7f7",
-    borderRadius: 8,
-    overflow: "hidden",
-  }}
->
-  {local.image ? (
-    <Image
-      src={local.image}
-      alt={local.name}
-      fill                         // fills the 64x64 box
-      sizes="64px"
-      style={{ objectFit: "cover" }}
-      // optional: skip Next optimization if Cloudinary already does it
-      // unoptimized
-    />
-  ) : null}
-</div>
+      <div
+        style={{
+          position: "relative",
+          width: 64,
+          height: 64,
+          background: "#f7f7f7",
+          borderRadius: 8,
+          overflow: "hidden",
+        }}
+      >
+        {local.image ? (
+          <Image
+            src={local.image}
+            alt={local.name}
+            fill
+            sizes="64px"
+            style={{ objectFit: "cover" }}
+          />
+        ) : null}
+      </div>
 
       <div style={{ display: "grid", gap: 6 }}>
-        {!edit ? (
+        {!edit ? 
+        (
           <>
             <div style={{ fontWeight: 600 }}>{product.name}</div>
             <div style={{ fontSize: 12, opacity: 0.7 }}>
-              {product.currency} {product.price} • {product.visibility} {product.in_stock ? "• in stock" : "• out of stock"}
+              {product.currency} {product.price} • {product.visibility} {viewStatusLabel}
+{(product as any).is_new ? " • new" : ""}
+
             </div>
           </>
         ) : (
@@ -419,7 +687,7 @@ function EditableRow({
               style={{ padding: 8, border: "1px solid #ccc", borderRadius: 8 }}
               placeholder="Name"
             />
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <input
                 type="number"
                 value={local.price}
@@ -442,14 +710,66 @@ function EditableRow({
                 <option value="published">published</option>
                 <option value="archived">archived</option>
               </select>
-              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 14 }}>
-                <input
-                  type="checkbox"
-                  checked={local.in_stock}
-                  onChange={(e) => setLocal((s) => ({ ...s, in_stock: e.target.checked }))}
-                />
-                in stock
+              {/* removed "in stock" checkbox */}
+            </div>
+
+            {/* NEW flags in edit */}
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <span>Category</span>
+                <select
+                  value={local.category || ""}
+                  onChange={(e) => setLocal((s) => ({ ...s, category: e.target.value }))}
+                  style={{ padding: 8, borderRadius: 8, border: "1px solid #ccc" }}
+                >
+                  <option value="">— pick category —</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <input type="checkbox" checked={isBanner} onChange={(e) => setIsBanner(e.target.checked)} />
+                banner
               </label>
+
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <input type="checkbox" checked={isNew} onChange={(e) => setIsNew(e.target.checked)} />
+                new
+              </label>
+
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <span>Stock</span>
+                <select
+                  value={stockStatus ?? ""}
+                  onChange={(e) => setStockStatus(e.target.value as StockStatusUI)}
+                  style={{ padding: 8, borderRadius: 8, border: "1px solid #ccc" }}
+                >
+                  <option value="">none</option>
+                  <option value="in_stock">in stock</option>
+                  <option value="out_of_stock">out of stock</option>
+                  <option value="restock">restock</option>
+                </select>
+              </div>
+
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <span>On offer</span>
+                <select
+                  value={offerPercent ?? ""}
+                  onChange={(e) =>
+                    setOfferPercent(e.target.value === "" ? null : (Number(e.target.value) as OfferPercent))
+                  }
+                  style={{ padding: 8, borderRadius: 8, border: "1px solid #ccc" }}
+                >
+                  <option value="">none</option>
+                  <option value="10">10%</option>
+                  <option value="30">30%</option>
+                  <option value="50">50%</option>
+                </select>
+              </div>
             </div>
 
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -496,11 +816,71 @@ function EditableRow({
       <div style={{ display: "flex", gap: 8 }}>
         {!edit ? (
           <>
-            {loggedIn && product.visibility !== "published" && (
-              <button onClick={publish} disabled={busy} style={{ padding: "6px 10px", borderRadius: 6 }}>
-                {busy ? "Publishing..." : "Publish"}
-              </button>
-            )}
+
+          {loggedIn && product.visibility !== "published" && (
+  <div id={`pub-${product.id}`} style={{ position: "relative", display: "inline-block" }}>
+    <button
+      onClick={() => setPubOpen((v) => !v)}
+      disabled={busy}
+      style={{ padding: "6px 10px", borderRadius: 6 }}
+    >
+      {busy ? "..." : "Publish"}
+    </button>
+
+    {pubOpen && (
+      <div
+        style={{
+          position: "absolute",
+          top: "110%",
+          right: 0,
+          zIndex: 10,
+          background: "#fff",
+          border: "1px solid #ddd",
+          borderRadius: 8,
+          padding: 10,
+          minWidth: 220,
+          boxShadow: "0 8px 24px rgba(0,0,0,.12)",
+        }}
+      >
+        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6, opacity: 0.7 }}>
+          Publish to
+        </div>
+
+        <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
+          <input type="checkbox" checked={pubWeb} onChange={(e) => setPubWeb(e.target.checked)} />
+          Website (set “published”)
+        </label>
+
+        <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
+          <input type="checkbox" checked={pubFB} onChange={(e) => setPubFB(e.target.checked)} />
+          Facebook Page
+        </label>
+
+        <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
+          <input type="checkbox" checked={pubIG} onChange={(e) => setPubIG(e.target.checked)} />
+          Instagram
+        </label>
+
+        <button
+          onClick={publishSelected}
+          disabled={busy || (!pubWeb && !pubFB && !pubIG)}
+          style={{
+            marginTop: 8,
+            width: "100%",
+            padding: "6px 10px",
+            borderRadius: 6,
+            background: "black",
+            color: "white",
+          }}
+        >
+          Go
+        </button>
+      </div>
+    )}
+  </div>
+)}
+
+
             {loggedIn && (
               <button onClick={() => setEdit(true)} style={{ padding: "6px 10px", borderRadius: 6 }}>
                 Edit
@@ -517,6 +897,10 @@ function EditableRow({
             <button
               onClick={() => {
                 setLocal(product);
+                setIsBanner((product as any).is_banner ?? false);
+                setIsNew((product as any).is_new ?? false);
+                setStockStatus((product as any).stock_status ?? "");
+                setOfferPercent((((product as any).offer_percent ?? null) as OfferPercent));
                 setEdit(false);
               }}
               style={{ padding: "6px 10px", borderRadius: 6 }}
